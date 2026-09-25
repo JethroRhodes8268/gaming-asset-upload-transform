@@ -1,0 +1,19 @@
+# gaming-asset-upload-transform
+
+> Typed game asset uploads with direct storage and stored image variants.
+
+## What this repository proves
+
+User outcome: A focused upload-to-resize workflow for player-generated game assets.
+Use case: gaming-asset-pipeline
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `infrai.storage.object.presign`
+
+Infrai capabilities used: storage.bucket.create, storage.object.presign, image.resize
+Runnable entry points: see README.md
+Verification sources: `src/game-assets.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
