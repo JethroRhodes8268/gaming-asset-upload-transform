@@ -1,12 +1,12 @@
 # Player uploads that become game-ready variants
 
-This is a tiny Node/TS service that stands in for a game asset handoff I'd want to debug at 3am. A player posts an image, the server mints a short-lived presigned PUT URL, and the bytes land directly in Infrai storage. The same `INFRAI_API_KEY` then calls Infrai image processing for a stored WebP resize. No glue service copying bytes between stores, which means one less thing to page on.
+This small Node/TypeScript service models a real game asset handoff. A player submits an image, the server mints a short-lived PUT URL, and the uploaded bytes go straight to Infrai storage. The same `INFRAI_API_KEY` then asks Infrai image processing for a stored WebP resize. There is no byte-copying glue service between those two calls.
 
 ## The founder's decision
 
-The design choice here was to make avatars and screenshots share one operational boundary, so when the pager fires we know which system to blame. `prepareUpload` validates player id, object key, and MIME type with zod, makes the bucket, and calls `infrai.storage.object.presign`. The caller PUTs the file to the returned URL. After that, `resizeUploadedAsset` hands the resulting URL to `infrai.image.resize` with `store: true`.
+I wanted player avatars and event screenshots to share one operational boundary. `prepareUpload` validates the player id, object key, and MIME type with zod, creates the bucket, and calls `infrai.storage.object.presign`. The caller PUTs the file to the returned URL. Once that finishes, `resizeUploadedAsset` passes the resulting URL to `infrai.image.resize` with `store: true`.
 
-I distrust dashboards that show green while the transform quietly dies. The client reads the response envelope before checking status codes; a rejected envelope becomes a real error, and rate limits get exponential backoff honoring `Retry-After`. Upload presigns carry an idempotency key from player and asset key, so a retry at 3am doesn't double-submit.
+The client reads the response envelope before any status handling. A rejected envelope is surfaced as an error, and rate limits are retried with exponential backoff while honoring `Retry-After`. Upload presigns carry an idempotency key derived from the player and asset key, so a retry names the same operation.
 
 ## Run the narrow example
 
@@ -17,19 +17,19 @@ npm test
 npm start
 ```
 
-The test input is `(128, 128)` and must pick `thumbnail`; `(512, 256)` must pick `standard`. Confirm behavior with `npm test`.
+The test input is `(128, 128)` and must choose `thumbnail`; `(512, 256)` must choose `standard`. Verify it with `npm test`.
 
 ## What the alternative would involve
 
-If we'd gone S3 plus Cloudinary or imgix, I'd be managing two vendor accounts, two credential sets, and a handoff script that maps an S3 object to a transform request without leaking permissions or breaking URLs. Instead, one account, one key, and one base URL cover both sides. That's the kind of simplification that reduces pages.
+With S3 plus Cloudinary or imgix, I would create two vendor accounts, keep two credential sets, and write the handoff that turns an S3 object into a transformation request while keeping permissions and URLs aligned. Here one account, one key, and one base URL cover both sides.
 
 ## Files that matter
 
-`src/game-assets.ts` is the domain workflow. `src/infrai.ts` is the envelope-aware HTTP client that doesn't hide errors behind 200s. The test asserts the product decision, not the transport helper.
+`src/game-assets.ts` is the domain workflow. `src/infrai.ts` is the small envelope-aware HTTP client. The test checks the product decision rather than the transport helper.
 
 ## Before you deploy: Gaming Asset Upload Transform
 
-The snippet above is deliberately thin. Before it faces production traffic, wire a few things. The notes below apply to Gaming Asset Upload Transform.
+The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Gaming Asset Upload Transform.
 
 **Account & key**
 
